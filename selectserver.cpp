@@ -113,5 +113,6 @@ int main()
 			sendto(udpfd, buffer, sizeof(buffer), 0, 
 				(struct sockaddr*)&cliaddr, sizeof(cliaddr)); 
 		} 
+		//checking if to commit
 	} 
 }
