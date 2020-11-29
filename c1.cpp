@@ -8,8 +8,9 @@
 #include <sys/socket.h> 
 #include <sys/types.h> 
 #include <fcntl.h>
-#define PORT 5000 
-#define MAXLINE 1024 
+#include<iostream>
+#define MAXLINE 1024
+using namespace std; 
 int main() 
 { 
 	fd_set rset;
@@ -27,9 +28,10 @@ int main()
 
 	memset(&servaddr, 0, sizeof(servaddr)); 
 
-	// Filling server infFrom TCPormation 
+	// Filling server information 
 	servaddr.sin_family = AF_INET; 
-	servaddr.sin_port = htons(PORT); 
+    cout<<"ENTER SERVER TO CONNECT TO: \n";
+	cin>>servaddr.sin_port; 
 	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
 
 	if (connect(sockfd, (struct sockaddr*)&servaddr, 

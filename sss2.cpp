@@ -10,8 +10,11 @@
 #include <sys/socket.h> 
 #include <sys/types.h> 
 #include <unistd.h> 
-#define PORT 5000 
+#include<vector>
+#define PORT 5001 
 #define MAXLINE 1024 
+
+
 int max(int x, int y) 
 { 
 	if (x > y) 
