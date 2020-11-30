@@ -15,7 +15,7 @@
 #include "packet.h"
 #include "routing_table.h"
 #include<iostream>
-#define PORT 5002 
+#define PORT 5001 
 #define MAXLINE 1024 
 using namespace std;
 
@@ -145,7 +145,7 @@ int main()
 						cout<<"Message sent to client"<<endl;
 					}
 				}
-			}	
+			}		
 		}
 		//if a client sent data
 		else
