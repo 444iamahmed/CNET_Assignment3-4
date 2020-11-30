@@ -69,7 +69,7 @@ int main()
 			cin>>_packet.message.dest_port;
 			cout<<"Enter message"<<endl;
 			cin>>_packet.message.text;
-			write(sockfd, &_packet, sizeof(packet));
+			cout<<write(sockfd, &_packet, sizeof(packet))<<"\n";
 			cout<<"Message sent"<<endl;
 		}
 		read(sockfd, buffer, sizeof(buffer));

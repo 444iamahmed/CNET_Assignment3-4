@@ -15,7 +15,7 @@
 #include "packet.h"
 #include "routing_table.h"
 #include<iostream>
-#define PORT 5002
+#define PORT 5001 
 #define MAXLINE 1024 
 using namespace std;
 
@@ -35,7 +35,6 @@ int main()
 	fd_set rset; 
 	socklen_t len; 
 	struct sockaddr_in server_addr, my_addr, cliaddr; 
-
     
 	/* create listening TCP socket */
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,8 +64,8 @@ int main()
 		printf("\n Error : Connect Failed \n"); 
 	} 
 	
+	maxfdp1 = max(listenfd, server_socket); 
 	// get maxfd 
-	maxfdp1 = max(listenfd, server_socket)+1; 
 	for (;;) { 
 
 		FD_ZERO(&rset); 
@@ -75,19 +74,20 @@ int main()
 		FD_SET(listenfd, &rset); 
 		FD_SET(server_socket, &rset);
 		
+
 		//iterate over client_sockets to set whichever is connected-------it->first = socketfd, it->second = port
 		for(auto it = client_sockets.begin(); it != client_sockets.end(); ++it)
 		{
 			if(it->first > 0)
 				FD_SET(it->first,&rset);
 			if(it->first > maxfdp1)
-				maxfdp1 = it->first + 1;
+				maxfdp1 = it->first;
 
 		}
 		
 		
 		// select the ready descriptor 
-		nready = select(maxfdp1, &rset, NULL, NULL, NULL); 
+		nready = select(maxfdp1+1, &rset, NULL, NULL, NULL); 
 
 		// if tcp socket is readable then handle 
 		// it by accepting the connection 
@@ -133,26 +133,27 @@ int main()
 				table.insert(_packet.new_tuple);
 				cout<<"UPDATED TABLE: \n";
 				table.display();
-			}	
+			}
+		cout<<"umm working"<<endl;	
 		}
 		//if a client sent data
 		else
 		{
+		cout<<"else working"<<endl;
 			for(auto it = client_sockets.begin(); it != client_sockets.end(); ++it)
 			{
-				packet _packet;
 				if(FD_ISSET(it->first, &rset))
 				{
+					cout<<"client found"<<endl;
+					packet _packet;
 					//if packet is "msg"
 					//read message
-					cout<<"Message received by server 3"<<endl; 
 					read(it->first, &_packet, sizeof(_packet));
-					//send to client
-					if(it->second == _packet.message.dest_port)
-					{
-						cout<<"sending to client"<<endl;
-						write(it->first, &_packet, sizeof(_packet));
-					}
+					cout<<"Message by client: "<<_packet.message.text<<endl;
+					//send to server 3
+					write(server_socket, &_packet, sizeof(_packet));
+					cout<<"Message sent to server 3"<<endl;
+						
 					//if packet is "dns_request"
 				}
 			}

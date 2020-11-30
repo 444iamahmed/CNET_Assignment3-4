@@ -64,8 +64,8 @@ int main()
 		printf("\n Error : Connect Failed \n"); 
 	} 
 	
+	maxfdp1 = max(listenfd, server_socket); 
 	// get maxfd 
-	maxfdp1 = max(listenfd, server_socket)+1; 
 	for (;;) { 
 
 		FD_ZERO(&rset); 
@@ -74,19 +74,20 @@ int main()
 		FD_SET(listenfd, &rset); 
 		FD_SET(server_socket, &rset);
 		
+
 		//iterate over client_sockets to set whichever is connected-------it->first = socketfd, it->second = port
 		for(auto it = client_sockets.begin(); it != client_sockets.end(); ++it)
 		{
 			if(it->first > 0)
 				FD_SET(it->first,&rset);
 			if(it->first > maxfdp1)
-				maxfdp1 = it->first + 1;
+				maxfdp1 = it->first;
 
 		}
 		
 		
 		// select the ready descriptor 
-		nready = select(maxfdp1, &rset, NULL, NULL, NULL); 
+		nready = select(maxfdp1+1, &rset, NULL, NULL, NULL); 
 
 		// if tcp socket is readable then handle 
 		// it by accepting the connection 
