@@ -29,4 +29,11 @@ class routing_table //simple vector container with specialised ftns
             	return it->getNext_port();
         }
     }
+
+    void update_table(routing_tuple new_tuple)
+    {
+        insert(new_tuple);
+        cout<<"UPDATED TABLE: \n";
+        display();
+    }
 };

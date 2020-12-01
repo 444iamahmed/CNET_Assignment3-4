@@ -23,7 +23,7 @@ int main()
 	int n, len; 
 	// Creating socket file descriptor 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
-		printf("socket creation failed"); 
+		cout<<"socket creation failed"; 
 		exit(0); 
 	} 
 
@@ -38,7 +38,7 @@ int main()
 
 	if (connect(sockfd, (struct sockaddr*)&servaddr, 
 							sizeof(servaddr)) < 0) { 
-		printf("\n Error : Connect Failed \n"); 
+		cout<<"\n Error : Connect Failed \n"; 
 	} 
 
 	int readflags = fcntl(sockfd, F_GETFL, 0), temp;
@@ -57,12 +57,12 @@ int main()
 		cin>> ans;
 		if(temp = read(sockfd, &_packet, sizeof(_packet)) > 0)
 		{
-			cout<<_packet.message.text<<endl;
+			cout<<"Message From Host: "<<_packet.message.text<<endl;
 
 		}
 		else
 		{
-			printf("Enter the number of client to send message to: ");
+			cout<<"Enter the number of client to send message to: ";
 			cin>>_packet.message.dest_port;
 			cout<<"Enter message"<<endl;
 			cin>>_packet.message.text;
