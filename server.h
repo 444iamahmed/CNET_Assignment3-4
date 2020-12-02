@@ -2,7 +2,6 @@
 #include <errno.h> 
 #include <netinet/in.h> 
 #include <signal.h> 
-#include <stdio.h> 
 #include <stdlib.h> 
 #include <strings.h> 
 #include <unistd.h>
@@ -10,10 +9,10 @@
 #include <sys/types.h> 
 #include <unistd.h> 
 #include <fcntl.h>
-#include<map>
+#include <map>
 #include "packet.h"
 #include "routing_table.h"
-#include<iostream>
+#include <iostream>
 using namespace std;
 class server
 {
@@ -21,12 +20,38 @@ class server
     //server variables
 	routing_table table;	//table to hold routing info
 	map<int, int> client_sockets;	//map with all client sockets and corresponding ports such that each pair is: [socketfd, port]
-	int listenfd, connfd, nready, maxfdp1, server_socket;  //listenfd = master socket   
+	int listenfd, connfd, nready, maxfd;  //listenfd = master socket   
     fd_set rset; 
 	socklen_t len; 
 	struct sockaddr_in cliaddr, my_addr; 
    
+    //relays a message to another socket such that it gets one hop closer to its destination...may send directly to client
+    void relay(map<int, int> &sockets, packet &_packet)
+    {
+        int next_port = table.get_next_port(_packet.message.dest_port);
+        cout<<"rec msg "<<_packet.message.text<<" next port: "<<next_port<<"\n";	
+        for(auto ij = sockets.begin(); ij != sockets.end(); ++ij)
+        {
+            if(next_port != -1 && ij->second == next_port)
+            {
+                write(ij->first, &_packet, sizeof(_packet));
+                break;
+            }    
+                
+        }
+    }	
+    
+    //sends packet to all sockets except the one equal to parameter
+    void broadcast(map<int,int> &sockets, int socket, packet &_packet)
+    {
+        for(auto ij = sockets.begin(); ij != sockets.end(); ++ij)
+        {
+            if(ij->first != socket)
+                write(ij->first, &_packet, sizeof(_packet));
+        }
+    }
 
+    //reset read_set for next iteration
     void set_rset()
     {
         FD_ZERO(&rset); 
@@ -39,13 +64,15 @@ class server
 		{
 			if(it->first > 0)
 				FD_SET(it->first,&rset);
-			if(it->first > maxfdp1)
-				maxfdp1 = it->first;
+			if(it->first > maxfd)
+				maxfd = it->first;
 
 		}
 
     
     }
+
+    //accept a new connection from a client
     void accept_connection()
     {
         len = sizeof(cliaddr); 
@@ -56,9 +83,13 @@ class server
         client_sockets.emplace(connfd, cliaddr.sin_port);		 
     }
 
-    void handle_client_packet()
+    //handles a packet
+    //checks "checking_sockets" for activity
+    //broadcasts packets to "broadcasting_sockets"
+    //relays packets to "relay_sockets"
+    void handle_packet(map<int, int> &checking_sockets, map<int, int> &broadcast_sockets, map<int, int> &relay_sockets)
     {
-        for(auto it = client_sockets.begin(); it != client_sockets.end(); ++it)
+        for(auto it = checking_sockets.begin(); it != checking_sockets.end(); ++it)
         {
             if(FD_ISSET(it->first, &rset))
             {
@@ -75,26 +106,10 @@ class server
 
                     table.update_table(_packet.new_tuple);
 
-                    for(auto ij = client_sockets.begin(); ij != client_sockets.end(); ++ij)
-                    {
-                        if(ij->second != it->second)
-                        write(ij->first, &_packet, sizeof(_packet));
-                    }
+                    broadcast(broadcast_sockets, it->first, _packet);
                 }
                 else if(_packet.type == msg)
-                {	
-                    int next_port = table.getnext_port(_packet.message.dest_port);
-                    cout<<"rec msg "<<_packet.message.text<<" next port: "<<next_port<<"\n";	
-                    for(auto ij = client_sockets.begin(); ij != client_sockets.end(); ++ij)
-                    {
-                        if(ij->second == next_port)
-                        {
-                            cout<<write(ij->first, &_packet, sizeof(_packet))<<" sent packet to next server "<<ij->first<<"\n";
-                            
-                        }
-                    }													
-    
-                }
+                    relay(relay_sockets, _packet);
                 else if(_packet.type == dns_request)
                 {}
             }
@@ -115,23 +130,20 @@ class server
         
     }
 
+    //runs the server after setup
     void run_server()
     {
-        maxfdp1 = listenfd;
+        maxfd = listenfd; //no other fd here, so max is listenfd
         for(;;)
         {
-            set_rset();
+            set_rset(); //reset read_set
 
-            nready = select(maxfdp1+1, &rset, NULL, NULL, NULL); 
+            nready = select(maxfd+1, &rset, NULL, NULL, NULL); 
 
             if(FD_ISSET(listenfd, &rset))
-            {
                 accept_connection();
-            }
-            else
-            {
-                handle_client_packet();
-            }
+            
+            handle_packet(client_sockets, client_sockets, client_sockets);
         }
     }
     

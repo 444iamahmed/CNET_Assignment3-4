@@ -1,6 +1,6 @@
-//server 3
+//dns server
 #include "server.h"
-#define PORT 5003
+#define PORT 5000
 #define MAXLINE 1024 
 
 

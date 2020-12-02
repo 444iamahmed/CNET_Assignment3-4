@@ -21,13 +21,14 @@ class routing_table //simple vector container with specialised ftns
             cout<<*it<<"\n";
         }
     }
-    int getnext_port(int port)
+    int get_next_port(int port)
     {
     	for(auto it = table.begin(); it!= table.end(); ++it)
         {
             if(it->getdestination_port() == port)
             	return it->getNext_port();
         }
+        return -1;
     }
 
     void update_table(routing_tuple new_tuple)
