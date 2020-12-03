@@ -53,6 +53,7 @@ struct packet
         strcpy(message, _m.c_str());
         dest_port = d_port;
         source_port = s_port;
+        type = msg;
     }
    
 };

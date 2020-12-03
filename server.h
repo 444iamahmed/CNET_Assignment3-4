@@ -137,7 +137,10 @@ class server
 
                 //if this is a message, relay it closer to its destination
                 else if(_packet.type == msg)
+                {
+                    cout<<"rec msg pkt from "<<_packet.source_port<<"\n";
                     relay(relay_sockets, _packet);
+                }
                 else if(_packet.type == dns_req)
                 {
                     cout<<"rec dns pkt\n";

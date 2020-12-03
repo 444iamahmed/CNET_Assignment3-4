@@ -92,7 +92,7 @@ int main()
 		{
 			cout<<"Enter \n 1: if you want to connect to a client \n 2: if you want to see any pending message"<<endl<<endl;
 			cin>>choice2;
-			packet _packet = msg;
+			packet _packet;
 			if(choice2 == 1)
 			{
 				cout<<"Enter client port to connect to: ";
