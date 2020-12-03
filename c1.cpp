@@ -15,12 +15,14 @@ using namespace std;
 int main() 
 { 
 	fd_set rset;
+	string request;
 	int sockfd, clientno; 
-	char buffer[MAXLINE], ans; 
-	char* message; 
-	struct sockaddr_in servaddr; 
-	packet _packet(msg);
-	int n, len; 
+	//char buffer[MAXLINE], ans; 
+	//char* message; 
+	struct sockaddr_in my_addr, servaddr; 
+	packet _packet;
+	int n;
+	socklen_t len; 
 	// Creating socket file descriptor 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
 		cout<<"socket creation failed"; 
@@ -41,33 +43,47 @@ int main()
 		cout<<"\n Error : Connect Failed \n"; 
 	} 
 
+	bzero(&my_addr, sizeof(my_addr));
+	len = sizeof(my_addr);
+	getsockname(sockfd, (struct sockaddr *) &my_addr, &len);
+
 	int readflags = fcntl(sockfd, F_GETFL, 0), temp;
 	readflags = fcntl(sockfd, F_SETFL, readflags | O_NONBLOCK);
-	/*while(temp = read(sockfd, buffer, sizeof(buffer)) < 0)
-	{
-		printf("server: "); 
-		puts(buffer);
-	}*/
-	bzero(buffer,sizeof(buffer));
+	
 
 	for(;;)
 	{
 		
-		cout<<"do you want to send message (y/n)"<<endl;
-		cin>> ans;
+		//cout<<"do you want to send message (y/n)"<<endl;
+		//cin>> ans;
+		
 		if(temp = read(sockfd, &_packet, sizeof(_packet)) > 0)
 		{
-			cout<<"Message From Host: "<<_packet.message.text<<endl;
+			if(_packet.type == dns_req)
+			{
+				cout<<_packet._dns_request.response<<"FOR "<<_packet._dns_request.request<<"\nROUTE: ";
+				for(int i = 0; i < _packet._dns_request.num_ports_visited; ++i)
+					cout<<_packet._dns_request.ports_visited[i]<<" -> ";
+				cout<<"\n";
+			}
+
+			//cout<<"Message From Host: "<<_packet.dns<<endl;
 
 		}
 		else
 		{
-			cout<<"Enter the number of client to send message to: ";
-			cin>>_packet.message.dest_port;
+
+			/*cout<<"Enter the number of client to send message to: ";
+			cin>>_packet.dest_port;
 			cout<<"Enter message"<<endl;
-			cin>>_packet.message.text;
+			cin>>_packet.message;
 			cout<<write(sockfd, &_packet, sizeof(packet))<<"\n";
-			cout<<"Message sent"<<endl;
+			cout<<"Message sent"<<endl;*/
+			cout<<"ENTER DNS REQUEST: \n";
+			cin>>request;
+			_packet = packet(request, my_addr.sin_port);
+			write(sockfd, &_packet, sizeof(packet));
+			sleep(3);
 		}
 		 
 	}

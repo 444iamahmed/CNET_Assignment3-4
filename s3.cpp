@@ -1,11 +1,9 @@
 //server 3
-#include "server.h"
-#define PORT 5003
+#include "proxy_server.h"
 #define MAXLINE 1024 
-
 
 int main() 
 { 
-	server me(PORT, 3);
+	proxy_server me(proxy, 3, 3);
 	me.run_server();
 }

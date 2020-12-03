@@ -1,3 +1,5 @@
+#pragma once
+#include <string.h>
 #include <arpa/inet.h> 
 #include <errno.h> 
 #include <netinet/in.h> 
@@ -10,10 +12,12 @@
 #include <unistd.h> 
 #include <fcntl.h>
 #include <map>
+#include <unordered_map>
 #include "packet.h"
 #include "routing_table.h"
 #include <iostream>
 using namespace std;
+//abstract base server class
 class server
 {
     protected:
@@ -25,11 +29,37 @@ class server
 	socklen_t len; 
 	struct sockaddr_in cliaddr, my_addr; 
    
+    virtual void process_request(packet &_packet) = 0;
+    virtual void update_recent_requests(dns_request &_dns_request) = 0;
+    //sets up connection and routing table for base servers such as proxy_server and dns_server
+    void server_connection_setup()
+    {
+        int temp_port;
+        read(connfd, &temp_port, sizeof(int));  //get port of client after connection
+        cout<<"read port!\n";
+        packet temp_packet;
+
+        
+        for(auto it = table.begin(); it != table.end(); ++it)   //send all existing tuples to new client
+        {
+            temp_packet = packet(*it);
+            write(connfd, &temp_packet, sizeof(packet));
+        }
+
+        routing_tuple temp_tuple(temp_port, 0, htons(my_addr.sin_port), temp_port);
+        temp_packet = packet(temp_tuple);
+
+        for(auto it = client_sockets.begin(); it != client_sockets.end(); ++it) //sent new tuple to all existing clients
+            write(it->first, &temp_packet, sizeof(packet));
+
+        table.update_table(temp_tuple); //add new tuple to own table
+        client_sockets.emplace(connfd, temp_port);  //add new client to own sockets
+    }   
+
     //relays a message to another socket such that it gets one hop closer to its destination...may send directly to client
     void relay(map<int, int> &sockets, packet &_packet)
     {
-        int next_port = table.get_next_port(_packet.message.dest_port);
-        cout<<"rec msg "<<_packet.message.text<<" next port: "<<next_port<<"\n";	
+        int next_port = table.get_next_port(_packet.dest_port);
         for(auto ij = sockets.begin(); ij != sockets.end(); ++ij)
         {
             if(next_port != -1 && ij->second == next_port)
@@ -66,10 +96,7 @@ class server
 				FD_SET(it->first,&rset);
 			if(it->first > maxfd)
 				maxfd = it->first;
-
 		}
-
-    
     }
 
     //accept a new connection from a client
@@ -80,7 +107,6 @@ class server
         
         cout<<"Connected to: "<<cliaddr.sin_port<<"\n";
         
-        client_sockets.emplace(connfd, cliaddr.sin_port);		 
     }
 
     //handles a packet
@@ -100,7 +126,7 @@ class server
                 //then send to all connected servers except the one that sent the packet
                 if(_packet.type == connection)
                 {
-                    _packet.new_tuple.router_port = my_addr.sin_port;
+                    cout<<"rec conn pkt from "<<_packet.source_port<<"\n";
                     _packet.new_tuple.next_port = it->second;
                     _packet.new_tuple.num_hops++;
 
@@ -108,10 +134,30 @@ class server
 
                     broadcast(broadcast_sockets, it->first, _packet);
                 }
+
+                //if this is a message, relay it closer to its destination
                 else if(_packet.type == msg)
                     relay(relay_sockets, _packet);
-                else if(_packet.type == dns_request)
-                {}
+                else if(_packet.type == dns_req)
+                {
+                    cout<<"rec dns pkt\n";
+                    if(_packet._dns_request.found_at_dns)   //send an update to proxy server in the case of success from dns
+                    {
+                        _packet._dns_request.found_at_dns = false;  //just making sure the update is only sent once
+                        packet update_packet(_packet._dns_request);
+                        relay(relay_sockets, update_packet);
+                    }
+                    _packet._dns_request.ports_visited[_packet._dns_request.num_ports_visited++] = (ntohs(my_addr.sin_port));   //add current node to route
+
+                    if(htons(_packet.dest_port) != my_addr.sin_port)    //if this server is not proxy or dns, relay
+                        relay(relay_sockets, _packet);
+                    else 
+                        process_request(_packet);   
+                }
+                else if(_packet.type == proxy_update)
+                {
+                    update_recent_requests(_packet._dns_request);   //for proxy server so it can update the recent requests
+                }
             }
         }
     }
@@ -143,7 +189,7 @@ class server
             if(FD_ISSET(listenfd, &rset))
                 accept_connection();
             
-            handle_packet(client_sockets, client_sockets, client_sockets);
+            handle_packet(client_sockets, client_sockets, client_sockets);  //base server only has client sockets so it checks, broadcasts to, and relays to just them
         }
     }
     

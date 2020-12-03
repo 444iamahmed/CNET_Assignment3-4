@@ -1,11 +1,10 @@
 //dns server
-#include "server.h"
-#define PORT 5000
+#include "dns_server.h"
 #define MAXLINE 1024 
 
 
 int main() 
 { 
-	server me(PORT, 3);
+	dns_server me(dns, 3, "test_file.txt");
 	me.run_server();
 }

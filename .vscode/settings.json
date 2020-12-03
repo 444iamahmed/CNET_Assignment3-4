@@ -15,6 +15,8 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "type_traits": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "system_error": "cpp",
+        "string": "cpp"
     }
 }

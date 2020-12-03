@@ -9,10 +9,6 @@ class routing_table //simple vector container with specialised ftns
     vector<routing_tuple> table;
 
     public:
-    void insert(routing_tuple _tuple)
-    {
-        table.push_back(_tuple);
-    }
     void display()
     {
         cout<<"DEST_PORT\tNUM_HOPS\tROUTER_PORT\tNEXT_PORT\n";
@@ -33,8 +29,17 @@ class routing_table //simple vector container with specialised ftns
 
     void update_table(routing_tuple new_tuple)
     {
-        insert(new_tuple);
+        table.push_back(new_tuple);
         cout<<"UPDATED TABLE: \n";
         display();
+    }
+
+    vector<routing_tuple>::iterator begin()
+    {
+        return table.begin();
+    }
+    vector<routing_tuple>::iterator end()
+    {
+        return table.end();
     }
 };

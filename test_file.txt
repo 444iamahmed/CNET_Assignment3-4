@@ -1,0 +1,10 @@
+www.google.com 8.8.8.8
+www.youtube.com 208.65.153.238
+www.facebook.com 69.63.181.15
+www.reddit.com 151.101.65.140
+www.twitter.com 104.244.41.10
+www.stackoverflow.com 151.101.193.69
+www.spotify.com 35.186.224.25
+www.github.com 13.234.176.102
+www.instagram.com 35.173.167.253
+www.pcgamer.com 185.113.25.55
