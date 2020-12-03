@@ -26,7 +26,35 @@ class routing_table //simple vector container with specialised ftns
         }
         return -1;
     }
-
+	int get_router_port(int port)
+    {
+    	for(auto it = table.begin(); it!= table.end(); ++it)
+        {
+            if(it->getdestination_port() == port)
+            	return it->getrouter_port();
+        }
+        return -1;
+    }
+    
+	void setting_client_no(int no,int port)
+    {
+    		for(auto it = table.begin(); it!= table.end(); ++it)
+		{
+		    if(it->getrouter_port() == port)
+		    	it->set_client_no(no);
+		}
+		
+    }
+    
+	int getting_client_no(int port)
+    {
+    		for(auto it = table.begin(); it!= table.end(); ++it)
+		{
+		    if(it->getdestination_port() == port)
+		    	return it->get_client_no();
+		}
+		return -1;
+    }
     void update_table(routing_tuple new_tuple)
     {
         table.push_back(new_tuple);
