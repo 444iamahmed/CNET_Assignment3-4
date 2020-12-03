@@ -28,6 +28,7 @@ class server
     fd_set rset; 
 	socklen_t len; 
 	struct sockaddr_in cliaddr, my_addr; 
+	
    
     virtual void process_request(packet &_packet) = 0;
     virtual void update_recent_requests(dns_request &_dns_request) = 0;
@@ -138,8 +139,43 @@ class server
                 //if this is a message, relay it closer to its destination
                 else if(_packet.type == msg)
                 {
-                    cout<<"rec msg pkt from "<<_packet.source_port<<"\n";
-                    relay(relay_sockets, _packet);
+                	if(_packet.link )
+                	{
+                		
+                		
+                		if(table.getting_client_no(_packet.dest_port) == _packet.dest_port )
+                		{
+                			cout<<"here"<<endl;
+                			string mg= "LINK BUSY";
+		        		strcpy(_packet.message, mg.c_str());
+		        		swap(_packet.dest_port, _packet.source_port);
+		        		write(it->first, &_packet, sizeof(_packet));
+                		}
+                		else
+                		{cout<<"here1"<<endl;
+                		int router_port=table.get_router_port(_packet.source_port);
+                		table.setting_client_no(_packet.source_port, router_port);
+                		
+                		router_port=table.get_router_port(_packet.dest_port);
+                		table.setting_client_no(_packet.dest_port, router_port);
+                		
+                		relay(relay_sockets, _packet);
+                		}
+                	}
+                	else if (table.getting_client_no(_packet.source_port) == _packet.source_port || table.getting_client_no(_packet.dest_port) == _packet.dest_port || table.getting_client_no(_packet.source_port) == _packet.dest_port || table.getting_client_no(_packet.dest_port) == _packet.source_port )
+                	{
+                		cout<<"here2"<<endl;
+                		relay(relay_sockets, _packet);
+                	}
+                	else
+                	{
+                		string mg= "LINK BUSY";
+                		strcpy(_packet.message, mg.c_str());
+                		swap(_packet.dest_port, _packet.source_port);
+                		write(it->first, &_packet, sizeof(_packet));
+                	}                	
+             
+                    
                 }
                 else if(_packet.type == dns_req)
                 {
