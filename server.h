@@ -139,43 +139,38 @@ class server
                 //if this is a message, relay it closer to its destination
                 else if(_packet.type == msg)
                 {
-                	if(_packet.link )
-                	{
-                		
-                		
-                		if(table.getting_client_no(_packet.dest_port) == _packet.dest_port )
-                		{
-                			cout<<"here"<<endl;
-                			string mg= "LINK BUSY";
-		        		strcpy(_packet.message, mg.c_str());
-		        		swap(_packet.dest_port, _packet.source_port);
-		        		write(it->first, &_packet, sizeof(_packet));
-                		}
-                		else
-                		{cout<<"here1"<<endl;
-                		int router_port=table.get_router_port(_packet.source_port);
-                		table.setting_client_no(_packet.source_port, router_port);
-                		
-                		router_port=table.get_router_port(_packet.dest_port);
-                		table.setting_client_no(_packet.dest_port, router_port);
-                		
-                		relay(relay_sockets, _packet);
-                		}
-                	}
-                	else if (table.getting_client_no(_packet.source_port) == _packet.source_port || table.getting_client_no(_packet.dest_port) == _packet.dest_port || table.getting_client_no(_packet.source_port) == _packet.dest_port || table.getting_client_no(_packet.dest_port) == _packet.source_port )
-                	{
-                		cout<<"here2"<<endl;
-                		relay(relay_sockets, _packet);
-                	}
-                	else
-                	{
-                		string mg= "LINK BUSY";
-                		strcpy(_packet.message, mg.c_str());
-                		swap(_packet.dest_port, _packet.source_port);
-                		write(it->first, &_packet, sizeof(_packet));
-                	}                	
-             
+                    cout<<"rec msg pkt ["<<_packet.source_port<<", "<<_packet.dest_port<<"]\n";
                     
+                    //check if the next link is in use or not
+                    if(!table.link_in_use(ntohs(my_addr.sin_port), _packet.source_port, _packet.dest_port))
+                    {
+                        cout<<"link not in use!\n";
+                        if(_packet.new_comm)    //set links if this is a new communication
+                        {
+                            cout<<"first communication!\n";
+                            table.set_links(ntohs(my_addr.sin_port), _packet.source_port,  _packet.dest_port);
+                        }
+                        else if(!strcmp(_packet.message, "close"))     //reset them if this is a close message
+                        {
+                            cout<<"last communication!\n";
+                            table.reset_links(ntohs(my_addr.sin_port), _packet.source_port,  _packet.dest_port);
+                        }
+                        if(_packet.dest_port != ntohs(my_addr.sin_port))    //only relay if the message is not meant for this server
+                            relay(relay_sockets, _packet);
+                        else
+                            cout<<_packet.source_port<<": "<< _packet.message<<"\n";    //if it is, display                
+                    }
+                    else
+                    {
+                        cout<<"link in use!\n";
+                        int temp_clients_on_link[2];
+                        _packet.new_comm = false;   //set the new_comm to false just in case
+                        table.get_clients_on_link(ntohs(my_addr.sin_port), _packet.dest_port, temp_clients_on_link);    //information ab clients using the link
+                        string mg= "LINK BUSY... IN USE BY: [" + to_string(temp_clients_on_link[0]) + ", " + to_string(temp_clients_on_link[1]) +"]";
+                        strcpy(_packet.message, mg.c_str());
+                        swap(_packet.dest_port, _packet.source_port);   //sending back to source
+                        write(it->first, &_packet, sizeof(_packet));    //send back to prev router/port
+                    }
                 }
                 else if(_packet.type == dns_req)
                 {

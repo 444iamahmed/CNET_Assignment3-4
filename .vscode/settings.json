@@ -17,6 +17,8 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "system_error": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "limits": "cpp",
+        "functional": "cpp"
     }
 }

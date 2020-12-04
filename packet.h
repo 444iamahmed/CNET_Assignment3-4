@@ -16,7 +16,7 @@ struct packet
     dns_request _dns_request;   //for dns request
     int source_port;
     int dest_port;
-    bool link;
+    bool new_comm;
 
     
     packet()
@@ -55,7 +55,7 @@ struct packet
         dest_port = d_port;
         source_port = s_port;
         type = msg;
-        link = li;
+        new_comm = li;
     }
    
 };

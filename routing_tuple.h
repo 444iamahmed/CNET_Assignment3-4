@@ -7,7 +7,7 @@ struct routing_tuple    //simple routing tuple to hold routing info
     int num_hops;
     int router_port;
     int next_port;
-    int  client_no;
+    int clients_on_link[2];   //holds info ab the clients using a link
 
     routing_tuple(int _destination_port, int _num_hops, int _router_port, int _next_port)
     {
@@ -15,6 +15,8 @@ struct routing_tuple    //simple routing tuple to hold routing info
         num_hops = _num_hops;
         router_port = _router_port;
         next_port = _next_port;
+        clients_on_link[0] = -1;
+        clients_on_link[1] = -1;
     }
     routing_tuple()
     {
@@ -22,30 +24,11 @@ struct routing_tuple    //simple routing tuple to hold routing info
         num_hops = 0;
         router_port = 0;
         next_port = 0;
+        clients_on_link[0] = -1;
+        clients_on_link[1] = -1;
     }
     //overloading cout
-    friend ostream& operator<<(ostream& os, const routing_tuple& tuple);
-    public:
-    int getdestination_port()
-    {
-    	return destination_port;
-    }
-    int getNext_port()
-    {
-    	return next_port;
-    }
-    int getrouter_port()
-    {
-    	return router_port;
-    }
-    void set_client_no(int no)
-    {
-    	client_no = no;
-    }
-    int get_client_no()
-    {
-    	return client_no;
-    }
+    friend ostream& operator<<(ostream& os, const routing_tuple& tuple);    
 };
 
 ostream& operator<<(ostream& os, const routing_tuple& tuple)

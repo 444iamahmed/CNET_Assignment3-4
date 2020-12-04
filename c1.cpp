@@ -1,4 +1,3 @@
-// TCP Client program 
 #include <netinet/in.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
@@ -7,21 +6,79 @@
 #include <arpa/inet.h>
 #include <sys/socket.h> 
 #include <sys/types.h> 
+#include <limits>
 #include <fcntl.h>
 #include<iostream>
+#include <semaphore.h>
 #include "packet.h"
+#include <pthread.h>
 #define MAXLINE 1024
-using namespace std; 
+using namespace std;
+
+//global variables due to threading 
+
+bool new_comm;
+int sockfd, clientno, choice1 ,choice2, dest_port, connected_port = -1; 
+struct sockaddr_in my_addr, servaddr; 
+sem_t semsem; 
+
+
+pthread_t receive_thread;
+//thread to receive any message from server
+//DO NOT TAKE INPUT HERE
+void* Receive(void* arg )
+{
+    packet _packet;
+    
+    do
+    {
+        read(sockfd,&_packet, sizeof(packet)); // read from server and output contents
+
+        if(_packet.type == dns_req) //dns req results
+        {
+            sem_wait(&semsem);
+            //display route
+            cout<<_packet._dns_request.response<<"FOR "<<_packet._dns_request.request<<"\nROUTE: "<<my_addr.sin_port<<" -> ";
+            for(int i = 0; i < _packet._dns_request.num_ports_visited; ++i)
+            {
+                cout<<_packet._dns_request.ports_visited[i]<<" -> ";
+                if(i+1 >= _packet._dns_request.num_ports_visited)
+                    cout<<my_addr.sin_port<<"\n";
+            }
+            cin.clear();
+            cout<<"INPUT FOR CURRENT PROMPT AGAIN: \n";
+            sem_post(&semsem);
+        }
+        else if(_packet.type == msg)    //msg results
+        {
+            sem_wait(&semsem);
+            cout<<_packet.source_port<<": "<< _packet.message<<"\n";    //display rec message
+            if(string(_packet.message).find("LINK BUSY") != string::npos || !strcmp(_packet.message,"close"))
+                connected_port = -1;    //if link busy or connection ending, allow for new connection
+            if(_packet.new_comm)
+                connected_port = _packet.source_port;   //allow for continued two sided comm if this is a new communication
+            cin.clear();
+            cout<<"INPUT FOR CURRENT PROMPT AGAIN: \n";
+            sem_post(&semsem);
+        }
+    }while(true);
+    
+    pthread_exit(0);
+
+}
+
 int main() 
 { 
-	fd_set rset;
+    bool check;
+    fd_set rset;
 	string request, message, ans;
-	int sockfd, clientno, choice1 ,choice2, dest_port; 
 	//char buffer[MAXLINE], ans; 
 	//char* message; 
-	struct sockaddr_in my_addr, servaddr; 
 	int n;
 	socklen_t len; 
+    int semvalue_catch;
+    sem_init(&semsem, 0, 1);
+
 	// Creating socket file descriptor 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
 		cout<<"socket creation failed"; 
@@ -32,15 +89,14 @@ int main()
 
 	// Filling server information 
 	servaddr.sin_family = AF_INET;
-	cout<<"The Servers are: \n 5001 \n 5002 \n 5004 \n"; 
-    	cout<<"ENTER SERVER TO CONNECT TO: \n";
-	cin>>servaddr.sin_port;
 	
-	if( servaddr.sin_port != 5001 && servaddr.sin_port != 5002 && servaddr.sin_port != 5004 )
-	{
-		cout<<"Incorrect port try again"<<endl;
-		cin>>servaddr.sin_port;
-	}
+    do
+    {
+        cout<<"The Servers are: \n 5001 \n 5002 \n 5004 \n"; 
+    	cout<<"ENTER SERVER TO CONNECT TO: \n";
+	    cin>>servaddr.sin_port;
+    }while(servaddr.sin_port != 5001 && servaddr.sin_port != 5002 && servaddr.sin_port != 5004);    //can only connect to these servers
+	
 	servaddr.sin_port=htons(servaddr.sin_port);
 	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
 
@@ -48,141 +104,75 @@ int main()
 							sizeof(servaddr)) < 0) { 
 		cout<<"\n Error : Connect Failed \n"; 
 	} 
-	
-	else
+    
+    
+    
+    else
 	{
-	bzero(&my_addr, sizeof(my_addr));
-	len = sizeof(my_addr);
-	getsockname(sockfd, (struct sockaddr *) &my_addr, &len);
+        pthread_create(&receive_thread, NULL, Receive, NULL);    //start receive thread
+		bzero(&my_addr, sizeof(my_addr));
+		len = sizeof(my_addr);
+		getsockname(sockfd, (struct sockaddr *) &my_addr, &len);    //set up own address 
 
-	int readflags = fcntl(sockfd, F_GETFL, 0), temp;
-	readflags = fcntl(sockfd, F_SETFL, readflags | O_NONBLOCK);
-	
 
-	for(;;)
-	{
-		
-		cout<<"Enter \n 1: To send DNS request \n 2: To connect to client \n";
-		cin>>choice1;
-		if(choice1 == 1)
+		for(;;)
 		{
-			
-			packet _packet;
-			while(true)
-			{
-				if(temp = read(sockfd, &_packet, sizeof(_packet)) > 0)
-				{
-					if(_packet.type == dns_req)
-					{
-						cout<<_packet._dns_request.response<<"FOR "<<_packet._dns_request.request<<"\nROUTE: ";
-						for(int i = 0; i < _packet._dns_request.num_ports_visited; ++i)
-							cout<<_packet._dns_request.ports_visited[i]<<" -> ";
-						cout<<"\n";
-					}
+            sem_getvalue(&semsem, &semvalue_catch);
+            if(semvalue_catch)
+            {
+                cout<<"Enter \n 1: To send DNS request \n anything else: To connect to client \n";
+                cin>>choice1;
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+            if(choice1 == 1)
+            {
+                sem_getvalue(&semsem, &semvalue_catch);
+                if(semvalue_catch)
+                {
+                    cout<<"ENTER DNS REQUEST: \n";
+                    cin>>request;
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                }
+                packet _packet(request, my_addr.sin_port);
+                write(sockfd, &_packet, sizeof(packet));
+            
+            }
+            else
+            {
+                sem_getvalue(&semsem, &semvalue_catch);
+                if(semvalue_catch)
+                {
+                    cout<<"Enter client port to connect to: ";
+                    cin>>dest_port;
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                }
+                sem_wait(&semsem);
+                new_comm = dest_port != connected_port;
+                connected_port = dest_port;
+                sem_post(&semsem);
+                do
+                {
+                    sem_getvalue(&semsem, &semvalue_catch);
+                    if(semvalue_catch)
+                    {
+                        cout<<"Enter message (first msg in a new connection can't be \"close\"): "<<endl;
+                        getline(cin, message);  
+                    }
+                    
+                }while(new_comm && message=="close");
+                
+                packet _packet(message, dest_port, my_addr.sin_port, new_comm); 
+                write(sockfd, &_packet, sizeof(_packet));
+            }
+            
+        //take input and write and shid
+        }
+    }
 
-				}
-				else
-				{
-
-					cout<<"ENTER DNS REQUEST: \n";
-					cin>>request;
-					_packet = packet(request, my_addr.sin_port);
-					write(sockfd, &_packet, sizeof(packet));
-					sleep(3);
-				}
-			}
-		}
-		else
-		{
-			cout<<"Enter \n 1: if you want to connect to a client \n 2: if you want to see any pending message"<<endl<<endl;
-			cin>>choice2;
-			packet _packet;
-			if(choice2 == 1)
-			{
-				cout<<"Enter client port to connect to: ";
-				cin>>dest_port;
-				bool link = true;
-				while(strcmp(_packet.message,"close"))
-				{
-					cout<<"Enter message: "<<endl;
-					cin.ignore();
-					getline(cin, message);
-
-					_packet = packet(message, dest_port, my_addr.sin_port, link); 
-					write(sockfd, &_packet, sizeof(_packet));						
-					
-					_packet.link = false;	//making it false after first sent
-					link = false ;
-					if(!strcmp(_packet.message ,"close") || !strcmp(_packet.message,"LINK BUSY"))
-						break;
-					
-					cout<<"Want to send another message or wait for reply(r) or CLOSE(close)"<<endl;
-					cin>>ans;
-					
-					if(ans[0]=='r')
-					{
-						temp = read(sockfd, &_packet, sizeof(_packet));
-						swap(_packet.dest_port, _packet.source_port);
-						cout<<"Message: "<<_packet.message<<endl;
-						if(!strcmp(_packet.message,"LINK BUSY"))
-							break;					
-					}
-					if(temp = read(sockfd, &_packet, sizeof(_packet)) > 0)
-					{
-						cout<<"You have a new message: "<<_packet.message<<endl;
-						swap(_packet.dest_port, _packet.source_port);
-					}
-					if(ans=="close")
-					{
-						strcpy(_packet.message, ans.c_str());
-						write(sockfd, &_packet, sizeof(packet));
-					}			
-				}
-			}
-			else
-			{
-				if(temp = read(sockfd, &_packet, sizeof(_packet)) > 0)
-				{
-					cout<<"Message: "<<_packet.message<<endl;
-					_packet.link = false;
-					cout<<"Send a reply or enter close to end connection"<<endl;
-					while(strcmp(_packet.message,"close") || strcmp(_packet.message,"LINK BUSY"))
-					{
-						cin.ignore();
-						getline(cin, message); 
-						swap(_packet.dest_port, _packet.source_port);
-						strcpy(_packet.message, message.c_str());
-						write(sockfd, &_packet, sizeof(packet));
-					
-						if(!strcmp(_packet.message,"close") || !strcmp(_packet.message,"LINK BUSY"))						
-							break;
-								
-						cout<<endl<<endl;
-						cout<<"Want to send another message or wait for reply(r) or CLOSE"<<endl;
-						cin>>ans;
-						if(ans[0] == 'r')
-						{
-							temp = read(sockfd, &_packet, sizeof(_packet));
-							cout<<"Message: "<<_packet.message<<endl;					
-						}
-						if(ans=="close")
-						{
-							strcpy(_packet.message, ans.c_str());
-							write(sockfd, &_packet, sizeof(packet));
-							break;
-						}						
-						cout<<"Enter message: "<<endl;		
-					}
-				}
-				else
-				{	
-					cout<<"No new message"<<endl;		
-				}
-			}
-			bzero(_packet.message,sizeof(_packet.message));
-		}
-		 
-	}
-	close(sockfd);
-	} 
+    pthread_join(receive_thread, NULL);
+    close(sockfd); 
+    pthread_exit(0);
 } 
